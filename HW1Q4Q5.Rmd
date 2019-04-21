@@ -1,0 +1,328 @@
+---
+title: "Homeword1 DS5220"
+author: "Boya Zhang"
+date: "September 17, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##Q4 Loss function for linear regression
+###Q4.a Overlay graphs of the loss functions
+####4.a (i) Assume that we have n=1 and for different range of e we have different loss function as below:
+
+```{r Q4_a}
+huber <- function(x,a) {ifelse(abs(x)<=a,0.5*x^2,a*abs(x)-0.5*a^2)}
+curve(x^2, -2, 2, n = 1000, col = "blue")
+curve(abs(x), add = TRUE,-2, 2, n = 1000, col = "green")
+curve(huber(x,1), add = TRUE,-2, 2, n = 1000, col = "red")
+curve(huber(x,0.5), add = TRUE,-2, 2, n = 1000, col = "pink")
+```
+####4.a (ii)Relative advantages and disadvantages:
+1.For the same data set, we have a same optimal point in above figure. But the speed that they tends to the optimal point are different. Quadratic loss function gives us the most high speed to the optimal point when e>1 (show as x in the figure), and the mean absolute loss give the even speed. Huber loss is more flexible for different parameter a.
+2.the costs of different loss function are also different. Huber loss function is with high cost among these functions.
+
+
+###Q4.b Implement gradient descent for the loss functions above 
+####4.b (i) gradient descent for quadratic loss function
+```{r Q4 b quadratic}
+batch_grad_des_l2 <- function(X, y, alpha) {
+  # Initialize theta
+  theta.init <- as.matrix(rnorm(n = dim(X)[2], mean = 0, sd = 1)) 
+  grad.init <- -2*(t(X) %*% y - t(X) %*% X %*% theta.init)
+  # set alpha
+  #alpha <- 0.01
+  theta <- theta.init - alpha * grad.init
+  for (i in 1:1000) {
+    grad <- -2 * (t(X) %*% y - t(X) %*% X %*% theta)
+    theta <- theta - alpha * grad
+    if (sqrt(sum(grad ^ 2)) <= 0.001) {
+      break
+    }
+  }
+  return(c(theta))
+}
+```
+####4.b (ii) gradient descent for mean absolute function
+```{r Q4 b mean abs}
+batch_grad_des_l1 <- function(X, y, alpha) {
+  # Initialize theta
+  theta.init <- as.matrix(rnorm(n = dim(X)[2], mean = 0, sd = 1)) 
+  S.init <- as.matrix(sign(y- X %*% theta.init))
+  grad.init <- -t(X) %*% S.init  
+  # set alpha
+  #alpha <- 0.01
+  theta <- theta.init - alpha * grad.init
+  for (i in 1:1000) {
+    S <- as.matrix(sign(y- X %*% theta))
+    grad <- -t(X) %*% S
+    theta <- theta - alpha * grad
+    if (sqrt(sum((y - X %*% theta) ^ 2)) <= 0.001) {
+      break
+    }
+  }
+  return(c(theta))
+}
+
+```
+####4.b (iii) gradient descent for huber loss function
+```{r Q4 b huber loss}
+Huber_grad_des <- function(X, y, alpha, delta) {
+  #set initial
+  theta.init <- as.matrix(rnorm(n = dim(X)[2], mean = 0, sd = 1)) 
+  theta.init <- t(theta.init)
+  e <- t(y) - theta.init %*% t(X)
+ # set delta
+  #delta <- 0.1
+  grad.init <- 
+   - e[,which(abs(e) <= delta)] %*% X[which(abs(e) <= delta),] + 
+   - delta *sign(e[,which(abs(e) > delta)])%*% X[which(abs(e) > delta),]
+  # set alpha
+  #alpha <- 0.01
+  theta <- theta.init - alpha * grad.init
+  for (i in 1:1000) {
+    e <- t(y) - theta %*% t(X)
+    grad <- 
+      - e[,which(abs(e) <= delta)] %*% X[which(abs(e) <= delta),] + 
+      - delta *sign(e[,which(abs(e) > delta)])%*% X[which(abs(e) > delta),]
+    theta <- theta - alpha * grad
+    if (sqrt(sum(grad ^ 2)) <= 0.001) {
+      break
+    }
+  }
+  return(c(theta))
+}
+
+```
+###Q4.c Implement stochastic gradient descent for the loss functions above
+####4.c (i) stochastic gradient descent for quadratic loss function
+```{r Q4 c quadratic}
+stochastic_grad_des_l2 <- function(X, y, alpha) {
+  N <- dim(X)[1]
+  #set initial
+  theta.init <- as.matrix(rnorm(n = dim(X)[2], mean = 0, sd = 1)) 
+  theta.init <- t(theta.init)
+  e <- t(y) - theta.init %*% t(X)
+  k <- sample(N,1)
+  grad.init <- -(2) %*% (e[k]) %*% X[k,]
+  #set alpha
+  #alpha <- 0.01
+  theta <- theta.init - alpha * grad.init
+  for (i in 1:1000) {
+    e <- t(y) - theta %*% t(X)
+    for(k in sample(N,1)){
+    grad <- -(2) %*% e[k]%*% X[k,]
+    theta <- theta - alpha * grad
+    if (sqrt(sum(grad ^ 2)) <= 0.001) {
+      break
+    }
+  }
+}
+  return(c(theta))
+}
+```
+####4.c (ii) stochastic gradient descent for mean absolute loss function
+```{r Q4 c absolute}
+stochastic_grad_des_l1 <- function(X, y, alpha) {
+  N <- dim(X)[1]
+  #set initial
+  theta.init <- as.matrix(rnorm(n = dim(X)[2], mean = 0, sd = 1)) 
+  k <- sample(N,1)
+  grad.init <- -as.vector(sign(y[k]- X[k,] %*% theta.init)) * X[k,]
+  #set alpha
+  #alpha <- 0.01
+  theta <- theta.init - alpha * grad.init
+  for (i in 1:1000) {
+    for(k in sample(N,1)){
+    grad <- -as.vector(sign(y[k]- X[k,] %*% theta)) * X[k,]
+    theta <- theta - alpha * grad
+    if (sqrt(sum((y - X %*% theta) ^ 2)) <= 0.001) {
+      break
+    }
+  }
+}
+  return(c(theta))
+}
+```
+
+####4.c (iii) stochastic gradient descent for huber loss function
+```{r Q4 C iii}
+stochastic_grad_des_hb <- function(X, y, alpha, delta) {
+  N <- dim(X)[1]
+  #set initial
+  theta.init <- as.matrix(rnorm(n = dim(X)[2], mean = 0, sd = 1)) 
+  theta.init <- t(theta.init)
+  e <- t(y) - theta.init %*% t(X)
+  k <- sample(N,1)
+  grad.init <- 
+   - e[,which(abs(e[k]) <= delta)] %*% X[which(abs(e[k]) <= delta),] + 
+   - delta *sign(e[,which(abs(e[k]) > delta)])%*% X[k,][which(abs(e[k]) > delta),]
+  #set alpha
+  alpha <- 0.01
+  theta <- theta.init - alpha * grad.init
+  for (i in 1:1000) {
+    for(k in sample(N,1)) {
+    grad.init <- 
+   - e[k][,which(abs(e[k]) <= delta)] %*% X[k,][which(abs(e[k]) <= delta),] + 
+   - delta *sign(e[k][,which(abs(e[k]) > delta)])%*% X[k,][which(abs(e[k]) > delta),]
+    theta <- theta - alpha * grad
+    if (sqrt(sum((y - X %*% theta) ^ 2)) <= 0.001) {
+      break
+    }
+  }
+  }
+  return(c(theta))
+}
+```
+##Q5 approaches to fitting linear regression
+###5 a Fit linear regression with squared loss to the simulated data
+#####generate data set:
+```{r Q5 data set}
+x <- as.matrix(runif(50, min = -2, max = 2))
+e <- rnorm(50,mean = 0, sd = 2)
+y <- as.matrix(2+3*x+e)
+X <- cbind(rep(1,length(y)),x)
+data_set<- data.frame(x,y)
+```
+
+#####5.a.(i) squared loss with the analytical solution
+```{r Q5 a i}
+    theta <- solve(t(X) %*% X) %*% t(X) %*% y
+    print(theta)
+```
+
+#####5.a.(ii) squared loss with batch gradient descent
+```{r Q5 a ii}
+batch_grad_des_l2(X, y, 0.01)
+
+```
+#####5.a.(iii) squared loss with stochastic gradient descent
+```{r Q5 a iii}
+stochastic_grad_des_l2(X, y, 0.01)
+```
+###5.b repeat (a) 1000 times
+```{r}
+slope1=c();slope2=c();slope3=c()
+for (i in 1:1000) {
+  x <- runif(n = 50, min = -2, max = 2)#simulate X
+  error <- rnorm(n = 50, mean = 0, sd = 2)
+  y <- 2 + 3 * x + error #simulate y
+  X <- data.frame(rep(1, length(y)), x)
+  X <- as.matrix(X)
+  slope1 <- c(slope1, (solve(t(X) %*% X) %*% t(X) %*% y)[2])
+  slope2 <- c(slope2, batch_grad_des_l2(X,y,0.01)[2])
+  slope3 <- c(slope3, stochastic_grad_des_l2(X,y,0.01)[2])
+
+}
+
+par(mfrow = c(1,3),pty = "s")
+hist(slope1, main = "Histogram of squared loss 
+     with the analytical solution");abline(v = 3,col = "red")
+hist(slope2, main = "Histogram of squared loss 
+     with batch gradient descent");abline(v = 3,col = "red")
+hist(slope3, main = "Histogram of squared loss 
+     with stochastic gradient descent");abline(v = 3,col = "red")
+
+```
+###5.c Fit linear regression and compare
+#####generate data set:
+```{r Q5 c}
+x <- as.matrix(runif(50, min = -2, max = 2))
+e <- rnorm(50,mean = 0, sd = 2)
+y <- as.matrix(2+3*x+e)
+X <- cbind(rep(1,length(y)),x)
+data_set<- data.frame(x,y)
+```
+####5.c.(i) squared loss with the analytical solution
+```{r}
+theta <- solve(t(X) %*% X) %*% t(X) %*% y
+print(theta)
+```
+####5.c.(ii) mean absolute error with batch gradient descent
+```{r}
+batch_grad_des_l1(X,y,0.01)
+```
+####5.c.(iii) Huber loss with batch gradient descent
+```{r}
+Huber_grad_des(X, y, 0.01, 0.1)
+```
+###5.d repeat (c) 1000 times
+```{r}
+slope1=c();slope2=c();slope3=c()
+for (i in 1:1000) {
+  x <- as.matrix(runif(50, min = -2, max = 2))
+  e <- rnorm(50,mean = 0, sd = 2)
+  y <- as.matrix(2+3*x+e)
+  X <- cbind(rep(1,length(y)),x)
+  data_set<- data.frame(x,y)
+  slope1 <- c(slope1, (solve(t(X) %*% X) %*% t(X) %*% y)[2])
+  slope2 <- c(slope2, batch_grad_des_l1(X,y,0.01)[2])
+  slope3 <- c(slope3, Huber_grad_des(X, y, 0.01, 0.1)[2])
+
+}
+
+par(mfrow = c(1,3),pty = "s")
+hist(slope1, main = "Histogram of squared loss 
+     with the analytical solution");abline(v = 3,col = "red")
+hist(slope2, main = "Histogram of mean absolute error with batch gradient descent");abline(v = 3,col = "red")
+hist(slope3, main = "Histogram of Huber loss with batch gradient descent");abline(v = 3,col = "red")
+
+```
+
+
+
+
+
+###5.e Fit linear regression and compare
+#####modify data
+```{r set data}
+x <- as.matrix(runif(50, min = -2, max = 2))
+e <- rnorm(50,mean = 0, sd = 2)
+i <- which(sample(x = c(0,1),size = 50, prob = c(0.9,0.1), replace = T)==1)
+y <- as.matrix(2+3*x+e)
+y[i] <- y[i] * sample( x = c(0.5,1.5),size=length(i),prob= c(0.5,0.5),replace = T)
+X <- cbind(rep(1,length(y)),x)
+data_set<- data.frame(x,y)
+
+```
+####5.e.(i) squared loss with the analytical solution
+```{r}
+theta <- solve(t(X) %*% X) %*% t(X) %*% y
+print(theta)
+```
+####5.e.(ii) mean absolute error with batch gradient descent
+
+```{r}
+batch_grad_des_l1(X, y, 0.01)
+```
+####5.e.(iii) Huber loss with batch gradient descent
+```{r}
+Huber_grad_des(X, y, 0.01, 0.1)
+```
+###5.f repeat (e) 1000 times
+```{r}
+slope1=c();slope2=c();slope3=c()
+for (i in 1:1000) {
+  x <- as.matrix(runif(50, min = -2, max = 2))
+  e <- rnorm(50,mean = 0, sd = 2)
+  i <- which(sample(x = c(0,1),size = 50, prob = c(0.9,0.1), replace = T)==1)
+  y <- as.matrix(2+3*x+e)
+  y[i] <- y[i] * sample( x = c(0.5,1.5),size=length(i),prob= c(0.5,0.5),replace = T)
+  X <- cbind(rep(1,length(y)),x)
+  data_set<- data.frame(x,y)
+  slope1 <- c(slope1, (solve(t(X) %*% X) %*% t(X) %*% y)[2])
+  slope2 <- c(slope2, batch_grad_des_l1(X,y,0.01)[2])
+  slope3 <- c(slope3, Huber_grad_des(X, y, 0.01, 0.1)[2])
+
+}
+
+par(mfrow = c(1,3),pty = "s")
+hist(slope1, main = "Histogram of squared loss 
+     with the analytical solution");abline(v = 3,col = "red")
+hist(slope2, main = "Histogram of mean absolute error with batch gradient descent");abline(v = 3,col = "red")
+hist(slope3, main = "Histogram of Huber loss with batch gradient descent");abline(v = 3,col = "red")
+
+```
